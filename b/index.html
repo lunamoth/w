@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>오늘의 날씨 - BeOS Edition</title>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+    <style>
+        :root {
+            /* BeOS-inspired color palette */
+            --beos-bg-light: #eeeeee;
+            --beos-window-bg-light: #f5f5f5;
+            --beos-title-bar-light: #cccccc;
+            --beos-border-light: #777777;
+            --beos-border-shadow-light: #ffffff; /* Lighter part of 3D effect */
+            --beos-text-light: #000000;
+            --beos-text-secondary-light: #444444;
+            --beos-highlight-yellow: #ffcc00;
+            --beos-accent-blue: #336699; /* Adjusted BeOS blue */
+            --beos-button-face-light: #dddddd;
+            --beos-button-text-light: #000000;
+            --beos-button-hover-light: #e8e8e8;
+            --beos-button-active-light: #bbbbbb;
+
+            /* Map to existing variables - Light Mode */
+            --bg-color: var(--beos-bg-light);
+            --card-bg-color: var(--beos-window-bg-light);
+            --border-color: var(--beos-border-light);
+            --primary-text-color: var(--beos-text-light);
+            --secondary-text-color: var(--beos-text-secondary-light);
+            --accent-color: var(--beos-highlight-yellow); /* General accent for BeOS */
+            --accent-color-warm: #cc3333; /* A BeOS-style warm red for max temp */
+            --accent-color-cold: var(--beos-accent-blue); /* For min temp */
+            --rain-color: var(--beos-accent-blue); /* Particle color */
+            --snow-color: #b0c4de; /* Particle color */
+            --font-family: "DejaVu Sans", "Bitstream Vera Sans", Verdana, "Helvetica", "Arial", sans-serif;
+            --skeleton-bg: #d0d0d0;
+            --skeleton-shine: rgba(255, 255, 255, 0.2);
+            --shadow-color: var(--beos-border-light);
+            --button-bg-color: var(--beos-button-face-light);
+            --button-text-color: var(--beos-button-text-light);
+            --button-hover-bg-color: var(--beos-button-hover-light);
+            --spacing-unit: 8px;
+        }
+
+        :root[data-theme="dark"] {
+            --beos-bg-dark: #3a3a3a;
+            --beos-window-bg-dark: #474747;
+            --beos-title-bar-dark: #5a5a5a;
+            --beos-border-dark: #2c2c2c;
+            --beos-border-shadow-dark: #6f6f6f;
+            --beos-text-dark: #dddddd;
+            --beos-text-secondary-dark: #aaaaaa;
+
+            --bg-color: var(--beos-bg-dark);
+            --card-bg-color: var(--beos-window-bg-dark);
+            --border-color: var(--beos-border-dark);
+            --primary-text-color: var(--beos-text-dark);
+            --secondary-text-color: var(--beos-text-secondary-dark);
+            --accent-color-warm: #ff6666;
+            --accent-color-cold: #77aaff;
+            --rain-color: #77aaff;
+            --snow-color: #cccccc;
+            --skeleton-bg: #505050;
+            --skeleton-shine: rgba(200, 200, 200, 0.1);
+            --shadow-color: var(--beos-border-dark);
+            --button-bg-color: #555555;
+            --button-text-color: var(--beos-text-dark);
+            --button-hover-bg-color: #606060;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-color);
+            color: var(--primary-text-color);
+            margin: 0;
+            padding: calc(var(--spacing-unit) * 2);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+            opacity: 1;
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+
+        .theme-toggle-button {
+            position: fixed;
+            top: var(--spacing-unit);
+            right: var(--spacing-unit);
+            padding: calc(var(--spacing-unit) * 0.75) var(--spacing-unit);
+            background-color: var(--button-bg-color);
+            color: var(--button-text-color);
+            border: 1px solid var(--border-color);
+            border-top-color: var(--beos-border-shadow-light);
+            border-left-color: var(--beos-border-shadow-light);
+            border-radius: 0;
+            cursor: pointer;
+            font-size: 0.85em;
+            z-index: 1001;
+            box-shadow: 1px 1px 0px 0px var(--border-color);
+            transition: none;
+        }
+        .theme-toggle-button:hover { background-color: var(--button-hover-bg-color); }
+        .theme-toggle-button:active {
+            background-color: var(--beos-button-active-light);
+            border-top-color: var(--border-color); border-left-color: var(--border-color);
+            border-bottom-color: var(--beos-border-shadow-light); border-right-color: var(--beos-border-shadow-light);
+            box-shadow: none; transform: translate(1px, 1px);
+        }
+        :root[data-theme="dark"] .theme-toggle-button {
+            border-top-color: var(--beos-border-shadow-dark);
+            border-left-color: var(--beos-border-shadow-dark);
+        }
+        :root[data-theme="dark"] .theme-toggle-button:active {
+             background-color: #383838;
+             border-top-color: var(--beos-border-dark); border-left-color: var(--beos-border-dark);
+             border-bottom-color: var(--beos-border-shadow-dark); border-right-color: var(--beos-border-shadow-dark);
+        }
+
+        canvas#weather-effects-canvas {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -1; pointer-events: none;
+        }
+        
+        .container { width: 100%; max-width: 1200px; }
+        header { text-align: center; margin-bottom: calc(var(--spacing-unit) * 3); }
+        header h1 { font-size: 1.8em; font-weight: bold; color: var(--primary-text-color); margin-bottom: calc(var(--spacing-unit) * 0.5); }
+        header p { font-size: 1em; color: var(--secondary-text-color); }
+
+        .skeleton { background-color: var(--skeleton-bg); border-radius: 0; position: relative; overflow: hidden; }
+        .skeleton::before {
+            content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--skeleton-shine); animation: beosSkeletonPulse 1.8s infinite ease-in-out; opacity: 0;
+        }
+        @keyframes beosSkeletonPulse { 0%, 100% { opacity: 0; transform: translateX(-100%); } 50% { opacity: 1; transform: translateX(0); } 100% { transform: translateX(100%);} }
+        .skeleton-text { height: 1em; margin-bottom: var(--spacing-unit); border-radius: 0; }
+        .skeleton-icon { width: 4em; height: 4em; border-radius: 0; margin: 0 auto; }
+
+        .top-info-grid { display: grid; grid-template-columns: 1fr; gap: calc(var(--spacing-unit) * 2); margin-bottom: calc(var(--spacing-unit) * 3); }
+
+        .current-weather-section, .aqi-section {
+            background-color: var(--card-bg-color);
+            border: 1px solid var(--border-color);
+            border-top: 1px solid var(--beos-border-shadow-light);
+            border-left: 1px solid var(--beos-border-shadow-light);
+            border-radius: 0;
+            box-shadow: 1px 1px 0 var(--shadow-color), 2px 2px 0 var(--shadow-color);
+            padding: 0;
+            margin-bottom: calc(var(--spacing-unit) * 3);
+            transition: background-color 0.2s ease, border-color 0.2s ease;
+        }
+         :root[data-theme="dark"] .current-weather-section,
+         :root[data-theme="dark"] .aqi-section {
+            border-top-color: var(--beos-border-shadow-dark);
+            border-left-color: var(--beos-border-shadow-dark);
+         }
+
+        .current-weather-section h2, .aqi-section h2, .weekly-temp-chart-container h2 {
+            background-color: var(--beos-title-bar-light);
+            color: var(--primary-text-color);
+            padding: calc(var(--spacing-unit) * 0.6) var(--spacing-unit) calc(var(--spacing-unit) * 0.6) calc(var(--spacing-unit) * 3.5);
+            margin: 0; border-bottom: 1px solid var(--border-color);
+            font-weight: normal; font-size: 0.9em; position: relative;
+            display: flex; align-items: center; justify-content: flex-start; text-align: left;
+        }
+        .current-weather-section h2::before, .aqi-section h2::before, .weekly-temp-chart-container h2::before {
+            content: ''; position: absolute; left: var(--spacing-unit); top: 50%;
+            transform: translateY(-50%);
+            height: calc(100% - var(--spacing-unit) * 0.75); width: calc(var(--spacing-unit) * 1.5);
+            background-color: var(--beos-highlight-yellow);
+            border: 1px solid var(--border-color);
+            border-right: 1px solid var(--beos-border-shadow-light); border-bottom: 1px solid var(--beos-border-shadow-light);
+        }
+         :root[data-theme="dark"] .current-weather-section h2,
+         :root[data-theme="dark"] .aqi-section h2,
+         :root[data-theme="dark"] .weekly-temp-chart-container h2 {
+            background-color: var(--beos-title-bar-dark); border-bottom-color: var(--beos-border-dark);
+         }
+         :root[data-theme="dark"] .current-weather-section h2::before,
+         :root[data-theme="dark"] .aqi-section h2::before,
+         :root[data-theme="dark"] .weekly-temp-chart-container h2::before {
+            border-color: var(--beos-border-dark);
+            border-right-color: var(--beos-border-shadow-dark); border-bottom-color: var(--beos-border-shadow-dark);
+         }
+
+        .current-weather-section .content-wrapper, .aqi-section .content-wrapper {
+             padding: calc(var(--spacing-unit) * 2);
+        }
+
+        .current-weather-main { display: flex; align-items: center; gap: calc(var(--spacing-unit) * 2); margin-bottom: calc(var(--spacing-unit) * 2); }
+        .current-weather-main .icon {
+            font-size: 4.5em;
+            line-height: 1;
+            filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.1));
+        }
+        .current-weather-main .icon.sun { animation: gentleRotate 20s linear infinite; }
+        @keyframes gentleRotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        .current-weather-main .temp-desc .temp { font-size: 2.8em; font-weight: bold; color: var(--primary-text-color); }
+        .current-weather-main .temp-desc .desc { font-size: 1em; color: var(--secondary-text-color); text-transform: capitalize; margin-top: calc(var(--spacing-unit) * 0.25); }
+
+        .current-weather-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--spacing-unit); }
+        .current-weather-details div {
+            color: var(--secondary-text-color); font-size: 0.9em;
+            background-color: var(--bg-color); padding: var(--spacing-unit);
+            border-radius: 0; border: 1px inset var(--border-color);
+            transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+        }
+        .current-weather-details div strong { color: var(--primary-text-color); font-weight: bold; }
+        .current-weather-details div::before { margin-right: calc(var(--spacing-unit) * 0.5); opacity: 0.8; font-weight: normal;}
+        .current-weather-details div:nth-child(1)::before { content: "🌡️"; }
+        .current-weather-details div:nth-child(2)::before { content: "💧"; }
+        .current-weather-details div:nth-child(3)::before { content: "💨"; }
+        .current-weather-details div:nth-child(4)::before { content: "🧭"; }
+        .current-weather-details div:nth-child(5)::before { content: "☔"; }
+        .current-weather-details div:nth-child(6)::before { content: "⏰"; }
+
+        .aqi-section { display: none; }
+
+        .weekly-temp-chart-container {
+            background-color: var(--card-bg-color);
+            border: 1px solid var(--border-color);
+            border-top: 1px solid var(--beos-border-shadow-light);
+            border-left: 1px solid var(--beos-border-shadow-light);
+            border-radius: 0;
+            box-shadow: 1px 1px 0 var(--shadow-color), 2px 2px 0 var(--shadow-color);
+            padding: 0;
+            margin-bottom: calc(var(--spacing-unit) * 10); /* Increased margin */
+            transition: background-color 0.2s ease, border-color 0.2s ease;
+            
+            display: flex;
+            flex-direction: column;
+            min-height: 380px; 
+        }
+         :root[data-theme="dark"] .weekly-temp-chart-container {
+            border-top-color: var(--beos-border-shadow-dark);
+            border-left-color: var(--beos-border-shadow-dark);
+         }
+
+        .weekly-temp-chart-container h2 {
+            flex-shrink: 0;
+        }
+
+        .weekly-temp-chart-container .content-wrapper {
+             padding: calc(var(--spacing-unit) * 2);
+             flex-grow: 1; 
+             position: relative; 
+             min-height: 300px; 
+        }
+
+        #weeklyTempChart {
+            display: block; 
+        }
+
+
+        .forecast-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: calc(var(--spacing-unit) * 2.5);
+            width: 100%;
+            margin-top: 0; 
+        }
+
+        .weather-card {
+            background-color: var(--card-bg-color);
+            border: 1px solid var(--border-color);
+            border-top: 1px solid var(--beos-border-shadow-light);
+            border-left: 1px solid var(--beos-border-shadow-light);
+            border-radius: 0; padding: 0;
+            box-shadow: 1px 1px 0 var(--shadow-color), 2px 2px 0 var(--shadow-color);
+            display: flex; flex-direction: column; gap: 0;
+            cursor: pointer;
+            opacity: 1; transform: none;
+            transition: background-color 0.2s ease, border-color 0.2s ease;
+        }
+         :root[data-theme="dark"] .weather-card {
+            border-top-color: var(--beos-border-shadow-dark);
+            border-left-color: var(--beos-border-shadow-dark);
+         }
+        .weather-card:hover {
+            transform: none;
+            box-shadow: 1px 1px 0 var(--shadow-color), 2px 2px 0 var(--shadow-color);
+            background-color: var(--beos-title-bar-light);
+        }
+        :root[data-theme="dark"] .weather-card:hover { background-color: var(--beos-title-bar-dark); }
+
+        .card-header {
+            background-color: var(--beos-title-bar-light);
+            color: var(--primary-text-color);
+            padding: calc(var(--spacing-unit) * 0.5) var(--spacing-unit);
+            border-bottom: 1px solid var(--border-color);
+            transition: border-color 0.2s ease, background-color 0.2s ease;
+            display: flex; flex-direction: column; align-items: center;
+            font-weight: normal; font-size: 0.9em;
+        }
+        :root[data-theme="dark"] .card-header {
+            background-color: var(--beos-title-bar-dark); border-bottom-color: var(--beos-border-dark);
+        }
+        .card-header .date-wrapper { display: flex; align-items: baseline; gap: calc(var(--spacing-unit) * 0.5); }
+        .card-header .month-day { font-size: 1.1em; font-weight: bold; color: var(--primary-text-color); }
+        .card-header .day-name { font-size: 0.9em; color: var(--secondary-text-color); font-weight: normal; }
+
+        .card-content-wrapper {
+            padding: var(--spacing-unit) calc(var(--spacing-unit) * 1.5);
+            display: flex; flex-direction: column; gap: var(--spacing-unit);
+            flex-grow: 1;
+        }
+
+        .card-main-weather { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-unit); }
+        .card-main-weather .icon {
+            font-size: 3em;
+            animation: gentleBob 3s ease-in-out infinite alternate;
+            filter: drop-shadow(1px 1px 1px rgba(0,0,0,0.08));
+        }
+        @keyframes gentleBob { from { transform: translateY(0); } to { transform: translateY(-3px); } }
+
+        .card-main-weather .temps { text-align: right; }
+        .card-main-weather .temps .temp-range { font-size: 1.1em; display: block; margin-bottom: calc(var(--spacing-unit) * 0.25); font-weight: bold; color: var(--primary-text-color); }
+        .card-main-weather .temps .temp-min { color: var(--accent-color-cold); font-weight: bold; }
+        .card-main-weather .temps .temp-max { color: var(--accent-color-warm); font-weight: bold; }
+        .card-main-weather .weather-description { font-size: 0.95em; color: var(--secondary-text-color); text-transform: capitalize; margin-top: calc(var(--spacing-unit) * 0.25); }
+
+        .card-details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-unit); font-size: 0.85em; }
+        .detail-item {
+            background-color: var(--bg-color); padding: calc(var(--spacing-unit) * 0.75);
+            border-radius: 0; border: 1px inset var(--border-color);
+            color: var(--secondary-text-color); display:flex; flex-direction: column;
+            transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+        }
+        .detail-item .label {
+            display: block; font-size: 0.9em; opacity: 0.8;
+            margin-bottom: calc(var(--spacing-unit) * 0.25);
+            color: var(--primary-text-color);
+        }
+        .detail-item .value { font-weight: bold; font-size: 1em; color: var(--primary-text-color); }
+        .detail-item .value .unit { font-size: 0.9em; opacity: 0.8; margin-left: calc(var(--spacing-unit) * 0.5); }
+        .detail-item.feels-like::before { content: "🌡️"; margin-right: calc(var(--spacing-unit) * 0.75); font-size: 0.9em; align-self: flex-start; }
+        .detail-item.precipitation::before { content: "💧"; margin-right: calc(var(--spacing-unit) * 0.75); font-size: 0.9em; align-self: flex-start; }
+        .detail-item.wind::before { content: "💨"; margin-right: calc(var(--spacing-unit) * 0.75); font-size: 0.9em; align-self: flex-start; }
+        .detail-item.uv-index::before { content: "☀️"; margin-right: calc(var(--spacing-unit) * 0.75); font-size: 0.9em; align-self: flex-start; }
+        .detail-item.sunrise-sunset::before { content: "🌅"; margin-right: calc(var(--spacing-unit) * 0.75); font-size: 0.9em; align-self: flex-start; }
+        .detail-item.precipitation-hours::before { content: "⏳"; margin-right: calc(var(--spacing-unit) * 0.75); font-size: 0.9em; align-self: flex-start; }
+
+
+        .modal {
+            display: none; position: fixed; z-index: 1000;
+            left: 0; top: 0; width: 100%; height: 100%;
+            overflow: auto; background-color: rgba(80, 80, 80, 0.5);
+            opacity: 0; transition: opacity 0.1s ease-out;
+        }
+        :root[data-theme="dark"] .modal { background-color: rgba(30, 30, 30, 0.6); }
+        .modal.active { display: flex; opacity: 1; }
+
+        .modal-content {
+            background-color: var(--card-bg-color); color: var(--primary-text-color);
+            margin: auto; padding: 0;
+            border: 1px solid var(--border-color);
+            border-top: 1px solid var(--beos-border-shadow-light);
+            border-left: 1px solid var(--beos-border-shadow-light);
+            border-radius: 0; width: 90%; max-width: 700px;
+            box-shadow: 2px 2px 0 var(--shadow-color), 3px 3px 0 var(--shadow-color);
+            transform: none !important;
+            display: flex; flex-direction: column;
+            transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+        }
+         :root[data-theme="dark"] .modal-content {
+            border-top-color: var(--beos-border-shadow-dark);
+            border-left-color: var(--beos-border-shadow-dark);
+         }
+
+        .modal-header {
+            background-color: var(--beos-title-bar-light); color: var(--primary-text-color);
+            padding: calc(var(--spacing-unit) * 0.6) var(--spacing-unit);
+            border-bottom: 1px solid var(--border-color);
+            display: flex; justify-content: space-between; align-items: center;
+            font-weight: normal; position: relative; flex-shrink: 0;
+        }
+         :root[data-theme="dark"] .modal-header {
+             background-color: var(--beos-title-bar-dark); border-bottom-color: var(--beos-border-dark);
+         }
+        .modal-header h2 {
+            font-size: 0.9em; margin: 0;
+            padding-left: calc(var(--spacing-unit) * 2.5);
+            color: var(--primary-text-color); font-weight: normal;
+        }
+        .modal-header::before {
+            content: ''; position: absolute; left: var(--spacing-unit); top: 50%;
+            transform: translateY(-50%);
+            height: calc(100% - var(--spacing-unit) * 0.75); width: calc(var(--spacing-unit) * 1.5);
+            background-color: var(--beos-highlight-yellow);
+            border: 1px solid var(--border-color);
+            border-right: 1px solid var(--beos-border-shadow-light); border-bottom: 1px solid var(--beos-border-shadow-light);
+        }
+        :root[data-theme="dark"] .modal-header::before {
+            border-color: var(--beos-border-dark);
+            border-right-color: var(--beos-border-shadow-dark); border-bottom-color: var(--beos-border-shadow-dark);
+        }
+
+        .close-button {
+            color: var(--button-text-color) !important; font-size: 1em !important; font-weight: normal !important;
+            cursor: pointer; border: 1px solid var(--border-color) !important;
+            border-top-color: var(--beos-border-shadow-light) !important; border-left-color: var(--beos-border-shadow-light) !important;
+            background: var(--button-bg-color) !important;
+            line-height: 1 !important; border-radius: 0 !important;
+            padding: calc(var(--spacing-unit)*0.25) calc(var(--spacing-unit)*0.75) !important;
+            box-shadow: 1px 1px 0px 0px var(--border-color); transition: none !important;
+        }
+        .close-button:hover { background-color: var(--button-hover-bg-color) !important; color: var(--button-text-color) !important;}
+        .close-button:active {
+            transform: translate(1px, 1px); box-shadow: none !important;
+            background-color: var(--beos-button-active-light) !important;
+            border-top-color: var(--border-color) !important; border-left-color: var(--border-color) !important;
+            border-bottom-color: var(--beos-border-shadow-light) !important; border-right-color: var(--beos-border-shadow-light) !important;
+        }
+         :root[data-theme="dark"] .close-button {
+            border-top-color: var(--beos-border-shadow-dark) !important;
+            border-left-color: var(--beos-border-shadow-dark) !important;
+         }
+         :root[data-theme="dark"] .close-button:active {
+             background-color: #383838 !important;
+             border-top-color: var(--beos-border-dark) !important; border-left-color: var(--beos-border-dark) !important;
+             border-bottom-color: var(--beos-border-shadow-dark) !important; border-right-color: var(--beos-border-shadow-dark) !important;
+         }
+
+        .modal-main-content-wrapper { padding: calc(var(--spacing-unit) * 2); overflow-y: auto; flex-grow: 1; }
+        .hourly-chart-wrapper { height: 280px; position: relative; flex-shrink: 0; margin-bottom: var(--spacing-unit); }
+        #hourlyTempChart { max-height: 100%; }
+
+        .hourly-forecast-list { overflow-y: auto; padding-right: var(--spacing-unit); flex-grow: 1; min-height: 150px; }
+        .hourly-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: calc(var(--spacing-unit) * 0.75) calc(var(--spacing-unit) * 0.25);
+            border-bottom: 1px dotted var(--border-color);
+            transition: border-color 0.2s ease, background-color 0.1s ease; font-size: 0.9em;
+        }
+        .hourly-item:last-child { border-bottom: none; }
+        .hourly-item:hover { background-color: rgba(0,0,0,0.04); }
+        :root[data-theme="dark"] .hourly-item:hover { background-color: rgba(255,255,255,0.04); }
+
+        .hourly-item .time { font-weight: bold; width: 20%; color: var(--primary-text-color); }
+        .hourly-item .icon { font-size: 1.8em; width: 15%; text-align: center; }
+        .hourly-item .temp { width: 18%; text-align: right; font-weight: bold; color: var(--primary-text-color); }
+        .hourly-item .precip { width: 22%; text-align: right; font-size: 0.9em; color: var(--secondary-text-color); }
+        .hourly-item .desc { width: 25%; text-align: right; font-size: 0.85em; color: var(--secondary-text-color); text-transform: capitalize; }
+
+
+        #error { font-size: 1.1em; text-align: center; margin-top: calc(var(--spacing-unit) * 4); width: 100%; color: #b00000; font-weight: bold;}
+        #error span { font-size: 1.3em; display: inline-block; margin-right: var(--spacing-unit); content: "⚠️ "; }
+        :root[data-theme="dark"] #error { color: #ff4444; }
+
+        #loadingSkeleton { width: 100%; max-width: 1200px; }
+        .skeleton-current-weather-section, .skeleton-aqi-section {
+            border: 1px solid var(--border-color); border-radius:0;
+            padding: calc(var(--spacing-unit) * 2); box-shadow: 1px 1px 0 var(--shadow-color);
+        }
+        .skeleton-current-weather-main { display: flex; align-items: center; gap: var(--spacing-unit); margin-bottom: var(--spacing-unit); }
+        .skeleton-current-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--spacing-unit); }
+        .skeleton-forecast-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: calc(var(--spacing-unit) * 2); }
+        .skeleton-card { border: 1px solid var(--border-color); border-radius:0; padding: var(--spacing-unit); }
+
+        .last-updated-timestamp {
+            width: 100%; text-align: center; margin-top: calc(var(--spacing-unit) * 3);
+            padding-bottom: var(--spacing-unit); font-size: 0.85em;
+            color: var(--secondary-text-color);
+        }
+
+        .icon.anim-cloud-drift { animation: cloudDrift 6s ease-in-out infinite alternate; }
+        @keyframes cloudDrift {
+            from { transform: translateX(-2px); }
+            to { transform: translateX(2px); }
+        }
+        .icon.anim-rain-drop { animation: rainDrop 1.2s ease-in-out infinite; }
+        @keyframes rainDrop {
+            0%, 100% { opacity: 1; transform: translateY(0); }
+            50% { opacity: 0.6; transform: translateY(3px); }
+        }
+        .icon.anim-snow-flake { animation: snowTwirl 5s ease-in-out infinite alternate; }
+        @keyframes snowTwirl {
+            from { opacity: 0.7; transform: rotate(-7deg); }
+            to { opacity: 1; transform: rotate(7deg); }
+        }
+
+
+        @media (max-width: 768px) {
+            body { padding: var(--spacing-unit); padding-top: calc(var(--spacing-unit) * 6); }
+            .theme-toggle-button { top: var(--spacing-unit); right: var(--spacing-unit); }
+            header h1 { font-size: 1.5em; }
+            header p { font-size: 0.9em; }
+            .current-weather-main .icon { font-size: 3.5em; }
+            .current-weather-main .temp-desc .temp { font-size: 2.2em; }
+            .forecast-container, .skeleton-forecast-container { grid-template-columns: 1fr; gap: var(--spacing-unit); }
+            .weather-card { padding: 0; }
+            .card-main-weather .icon { font-size: 2.5em; }
+            
+            .card-header .month-day { font-size: 1em; }
+            .card-header .day-name { font-size: 0.8em; }
+
+            .modal-content { width: 95%; max-height: 90vh; }
+            .hourly-chart-wrapper { height: 220px; margin-bottom: var(--spacing-unit); }
+            .hourly-item .time { width: 25%; }
+            .hourly-item .icon { width: 18%; font-size: 1.5em; }
+            .hourly-item .temp { width: 22%; }
+            .hourly-item .precip { display: inline-block; width: 15%; }
+            .hourly-item .desc { width: 20%; font-size: 0.8em; }
+        }
+    </style>
+</head>
+<body>
+    <button id="themeToggle" class="theme-toggle-button">Theme</button>
+
+    <canvas id="weather-effects-canvas"></canvas>
+
+    <div id="loadingSkeleton">
+        <header>
+            <div class="skeleton skeleton-text" style="width: 30%; height: 1.5em; margin: 0 auto var(--spacing-unit);"></div>
+            <div class="skeleton skeleton-text" style="width: 50%; height: 1em; margin: 0 auto;"></div>
+        </header>
+        <div class="top-info-grid">
+            <section class="skeleton-current-weather-section">
+                <div class="skeleton skeleton-text" style="width: 25%; height: 1.2em; margin-bottom: var(--spacing-unit);"></div>
+                <div style="padding: var(--spacing-unit)">
+                    <div class="skeleton-current-weather-main">
+                        <div class="skeleton skeleton-icon" style="width: 3em; height: 3em;"></div>
+                        <div>
+                            <div class="skeleton skeleton-text" style="width: 80px; height: 2.5em;"></div>
+                            <div class="skeleton skeleton-text" style="width: 120px; height: 1em; margin-top: calc(var(--spacing-unit) * 0.5);"></div>
+                        </div>
+                    </div>
+                    <div class="skeleton-current-details">
+                        <div class="skeleton skeleton-text" style="height: 2em;"></div> <div class="skeleton skeleton-text" style="height: 2em;"></div>
+                        <div class="skeleton skeleton-text" style="height: 2em;"></div> <div class="skeleton skeleton-text" style="height: 2em;"></div>
+                    </div>
+                </div>
+            </section>
+        </div>
+        <div class="weekly-temp-chart-container skeleton" style="min-height: 380px; margin-bottom: calc(var(--spacing-unit) * 10);">
+             <div class="skeleton skeleton-text" style="width: 40%; height: 1.2em; margin: var(--spacing-unit) auto var(--spacing-unit);"></div>
+        </div>
+        <main class="skeleton-forecast-container">
+            <div class="skeleton-card" style="height: 280px;"></div> <div class="skeleton-card" style="height: 280px;"></div> <div class="skeleton-card" style="height: 280px;"></div>
+        </main>
+    </div>
+
+    <div class="container" id="appContainer" style="display:none;">
+        <header>
+            <h1 id="mainTitle">오늘과 주간 날씨</h1>
+            <p id="subTitle">서울의 상세한 날씨 정보를 확인하세요.</p>
+        </header>
+
+        <div class="top-info-grid">
+            <section class="current-weather-section">
+                <h2>현재 날씨</h2>
+                <div class="content-wrapper">
+                    <div class="current-weather-main">
+                        <span class="icon" id="currentWeatherIcon"></span>
+                        <div class="temp-desc">
+                            <span class="temp" id="currentTemp"></span>
+                            <span class="desc" id="currentWeatherDesc"></span>
+                        </div>
+                    </div>
+                    <div class="current-weather-details">
+                        <div>체감: <strong id="currentApparentTemp"></strong></div>
+                        <div>습도: <strong id="currentHumidity"></strong></div>
+                        <div>풍속: <strong id="currentWindSpeed"></strong></div>
+                        <div>풍향: <strong id="currentWindDir"></strong></div>
+                        <div>강수(1h): <strong id="currentPrecipitation"></strong></div>
+                        <div>시간: <strong id="currentTime"></strong></div>
+                    </div>
+                </div>
+            </section>
+             <section class="aqi-section" id="aqiSection" style="display: none;">
+                 <h2>대기 질 지수 (AQI)</h2>
+                 <div class="content-wrapper">
+                     <div class="aqi-details">
+                         <div class="aqi-value" id="aqiValue">N/A</div>
+                         <div class="aqi-level" id="aqiLevel">정보 없음</div>
+                         <div class="aqi-pollutants">
+                             <span>(정보 로딩 중...)</span>
+                         </div>
+                     </div>
+                 </div>
+             </section>
+        </div>
+
+        <section class="weekly-temp-chart-container">
+            <h2>주간 최고/최저 기온</h2>
+            <div class="content-wrapper">
+                <canvas id="weeklyTempChart"></canvas>
+            </div>
+        </section>
+
+        <main class="forecast-container" id="forecastContainer">
+            <!-- Weather cards are added here -->
+        </main>
+    </div>
+
+    <div id="hourlyModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">시간별 예보</h2>
+                <span class="close-button" id="closeModalButton">&times;</span>
+            </div>
+            <div class="modal-main-content-wrapper">
+                <div class="hourly-chart-wrapper">
+                     <canvas id="hourlyTempChart"></canvas>
+                </div>
+                <div class="hourly-forecast-list" id="hourlyForecastList">
+                    <!-- Hourly forecast items -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="error" style="display:none;"><span></span>날씨 정보를 가져오는데 실패했습니다. 나중에 다시 시도해주세요.</div>
+    <p id="lastUpdated" class="last-updated-timestamp"></p>
+
+<script>
+(function WeatherApp() {
+    'use strict';
+
+    const CONFIG = {
+        SEOUL_LAT: 37.5665,
+        SEOUL_LON: 126.9780,
+        API_BASE_URL: "https://api.open-meteo.com/v1/forecast",
+        PARTICLE_DENSITY_SNOW_DIVISOR: 30000,
+        PARTICLE_DENSITY_RAIN_DIVISOR: 20000,
+        MAX_PARTICLES: 150,
+        MODAL_ACTIVE_CLASS: 'active',
+        LOCAL_STORAGE_THEME_KEY: 'weatherAppThemeBeOS',
+        WMO_MAP: {0:{description:"맑음",icon:"☀️",effect:null},1:{description:"대체로 맑음",icon:"🌤️",effect:null},2:{description:"부분적 흐림",icon:"🌥️",effect:null},3:{description:"흐림",icon:"☁️",effect:null},45:{description:"안개",icon:"🌫️",effect:null},48:{description:"서리 안개",icon:"🌫️❄️",effect:null},51:{description:"가벼운 이슬비",icon:"💧",effect:"rain"},53:{description:"보통 이슬비",icon:"💧",effect:"rain"},55:{description:"강한 이슬비",icon:"💧",effect:"rain"},56:{description:"가벼운 어는 이슬비",icon:"🥶💧",effect:"rain_snow"},57:{description:"강한 어는 이슬비",icon:"🥶💧",effect:"rain_snow"},61:{description:"가벼운 비",icon:"🌧️",effect:"rain"},63:{description:"보통 비",icon:"🌧️",effect:"rain"},65:{description:"강한 비",icon:"🌧️",effect:"rain"},66:{description:"가벼운 어는 비",icon:"🥶🌧️",effect:"rain_snow"},67:{description:"강한 어는 비",icon:"🥶🌧️",effect:"rain_snow"},71:{description:"가벼운 눈",icon:"❄️",effect:"snow"},73:{description:"보통 눈",icon:"❄️",effect:"snow"},75:{description:"강한 눈",icon:"❄️",effect:"snow"},77:{description:"싸락눈",icon:"❄️",effect:"snow"},80:{description:"가벼운 소나기",icon:"🌦️",effect:"rain"},81:{description:"보통 소나기",icon:"🌦️",effect:"rain"},82:{description:"강한 소나기",icon:"⛈️",effect:"rain"},85:{description:"가벼운 눈 소나기",icon:"🌨️",effect:"snow"},86:{description:"강한 눈 소나기",icon:"🌨️",effect:"snow"},95:{description:"천둥번개",icon:"⛈️",effect:"rain"},96:{description:"가벼운 우박 동반 뇌우",icon:"⛈️🧊",effect:"rain"},99:{description:"강한 우박 동반 뇌우",icon:"⛈️🧊",effect:"rain"}}
+    };
+
+    const ICON_ANIMATION_MAP = {
+        '☀️': 'sun',
+        '☁️': 'anim-cloud-drift',
+        '🌥️': 'anim-cloud-drift',
+        '🌤️': 'anim-cloud-drift',
+        '🌧️': 'anim-rain-drop',
+        '💧': 'anim-rain-drop',
+        '🌦️': 'anim-rain-drop',
+        '⛈️': 'anim-rain-drop',
+        '❄️': 'anim-snow-flake',
+        '🌨️': 'anim-snow-flake',
+    };
+
+
+    const DOM = {
+        appContainer: document.getElementById('appContainer'),
+        loadingSkeleton: document.getElementById('loadingSkeleton'),
+        forecastContainer: document.getElementById('forecastContainer'),
+        errorMessage: document.getElementById('error'),
+        weatherEffectsCanvas: document.getElementById('weather-effects-canvas'),
+        hourlyModal: document.getElementById('hourlyModal'),
+        closeModalButton: document.getElementById('closeModalButton'),
+        hourlyForecastList: document.getElementById('hourlyForecastList'),
+        modalTitle: document.getElementById('modalTitle'),
+        aqiSection: document.getElementById('aqiSection'),
+        themeToggleButton: document.getElementById('themeToggle'),
+        lastUpdated: document.getElementById('lastUpdated'),
+        mainTitle: document.getElementById('mainTitle'),
+        subTitle: document.getElementById('subTitle'),
+        currentWeatherIcon: document.getElementById('currentWeatherIcon'),
+        currentTemp: document.getElementById('currentTemp'),
+        currentWeatherDesc: document.getElementById('currentWeatherDesc'),
+        currentApparentTemp: document.getElementById('currentApparentTemp'),
+        currentHumidity: document.getElementById('currentHumidity'),
+        currentWindSpeed: document.getElementById('currentWindSpeed'),
+        currentWindDir: document.getElementById('currentWindDir'),
+        currentPrecipitation: document.getElementById('currentPrecipitation'),
+        currentTime: document.getElementById('currentTime'),
+        weeklyTempChartCanvas: document.getElementById('weeklyTempChart'),
+        hourlyTempChartCanvas: document.getElementById('hourlyTempChart')
+    };
+    const weatherEffectsCtx = DOM.weatherEffectsCanvas.getContext('2d');
+
+    const _appState = {
+        hourlyFullData: null,
+        weeklyTempChartInstance: null,
+        hourlyTempChartInstance: null,
+        weatherEffect: {
+            animationFrameId: null,
+            particles: [],
+            currentEffectType: null
+        }
+    };
+
+    function getWeatherDetails(wmoCode, isDay = true) {
+        const details = CONFIG.WMO_MAP[wmoCode];
+        if (details) {
+            let icon = details.icon;
+            if (!isDay) {
+                if (wmoCode === 0) icon = "🌙";
+                else if (wmoCode === 1) icon = "☁️🌙";
+            }
+            return { ...details, icon };
+        }
+        return { description: `Code ${wmoCode}`, icon: "❓", effect: null };
+    }
+
+    function formatTime(dateString, includeSeconds = false) {
+        if (!dateString) return "N/A";
+        try {
+            const date = new Date(dateString);
+            const options = { hour: '2-digit', minute: '2-digit', hour12: false };
+            if (includeSeconds) options.second = '2-digit';
+            return date.toLocaleTimeString('ko-KR', options);
+        } catch (e) { console.error("Error formatting time:", dateString, e); return "N/A"; }
+    }
+
+    function degreesToCardinal(deg) {
+        if (typeof deg !== 'number' || isNaN(deg)) return "N/A";
+        const cardinals = ["북", "북북동", "북동", "동북동", "동", "동남동", "남동", "남남동", "남", "남남서", "남서", "서남서", "서", "서북서", "북서", "북북서"];
+        return cardinals[Math.round(deg / 22.5) % 16];
+    }
+
+    function applySpecificIconAnimation(element, iconChar) {
+        if (!element) return;
+        const currentAnimClasses = Array.from(element.classList).filter(cls => cls.startsWith('anim-'));
+        currentAnimClasses.forEach(cls => element.classList.remove(cls));
+        for (const key in ICON_ANIMATION_MAP) {
+            if (iconChar.includes(key) && ICON_ANIMATION_MAP[key] !== 'sun') {
+                if ((key === '🌦️' && iconChar.includes('⛈️')) || (key === '💧' && iconChar.includes('🌧️'))) continue;
+                element.classList.add(ICON_ANIMATION_MAP[key]);
+                if (ICON_ANIMATION_MAP[key] !== 'anim-cloud-drift') break;
+            }
+        }
+    }
+    
+    function updateChartInstanceColors(chartInstance, newColors, chartType) {
+        if (!chartInstance?.options) return;
+        chartInstance.options.plugins.legend.labels.color = newColors.primaryTextColor;
+        const tooltip = chartInstance.options.plugins.tooltip;
+        tooltip.backgroundColor = newColors.cardBgColor;
+        tooltip.titleColor = newColors.primaryTextColor;
+        tooltip.bodyColor = newColors.primaryTextColor;
+        tooltip.borderColor = newColors.borderColor;
+        tooltip.borderWidth = 1;
+
+        Object.values(chartInstance.options.scales).forEach(axis => {
+            if (axis.ticks) axis.ticks.color = newColors.primaryTextColor;
+            if (axis.grid) axis.grid.color = newColors.borderColor;
+            if (axis.title?.display) axis.title.color = newColors.primaryTextColor;
+        });
+        
+        const ctx = chartInstance.ctx;
+        chartInstance.data.datasets.forEach((dataset, index) => {
+            let newOpts;
+            if (chartType === 'weekly') {
+                newOpts = createChartDatasetOptions(index === 0 ? 'weeklyMax' : 'weeklyMin', newColors, ctx, dataset.label, dataset.data);
+            } else if (chartType === 'hourly') {
+                newOpts = createChartDatasetOptions(index === 0 ? (dataset.type === 'bar' ? 'hourlyPrecip' : 'hourlyTemp') : (dataset.type === 'bar' ? 'hourlyPrecip' : 'hourlyTemp'), newColors, ctx, dataset.label, dataset.data);
+            }
+            if (newOpts) Object.assign(dataset, newOpts);
+        });
+        chartInstance.update();
+    }
+
+    function applyTheme(theme, isInitialLoad = false) {
+        document.documentElement.setAttribute('data-theme', theme);
+        DOM.themeToggleButton.textContent = theme === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode';
+        localStorage.setItem(CONFIG.LOCAL_STORAGE_THEME_KEY, theme);
+
+        if (!isInitialLoad && (DOM.appContainer.style.display === 'block' || DOM.appContainer.style.display === '')) {
+            const newChartColors = getChartColors();
+            if (_appState.weeklyTempChartInstance) updateChartInstanceColors(_appState.weeklyTempChartInstance, newChartColors, 'weekly');
+            if (_appState.hourlyTempChartInstance) updateChartInstanceColors(_appState.hourlyTempChartInstance, newChartColors, 'hourly');
+            if (_appState.weatherEffect.particles.length > 0) updateAllParticleColors();
+        }
+    }
+
+    function toggleTheme() {
+        const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+        applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
+    }
+
+    function loadInitialTheme() {
+        const savedTheme = localStorage.getItem(CONFIG.LOCAL_STORAGE_THEME_KEY) || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        applyTheme(savedTheme, true);
+    }
+
+    function getChartColors() {
+        const style = getComputedStyle(document.documentElement);
+        return {
+            primaryTextColor: style.getPropertyValue('--primary-text-color').trim(),
+            borderColor: style.getPropertyValue('--border-color').trim(),
+            cardBgColor: style.getPropertyValue('--card-bg-color').trim(),
+            accentColorWarm: style.getPropertyValue('--accent-color-warm').trim(),
+            accentColorCold: style.getPropertyValue('--accent-color-cold').trim(),
+            accentColor: style.getPropertyValue('--accent-color').trim(),
+            fontFamily: style.getPropertyValue('--font-family').trim()
+        };
+    }
+    
+    function getBaseChartOptions() {
+        const colors = getChartColors();
+        return {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { labels: { color: colors.primaryTextColor, font: { size: 10, family: colors.fontFamily }}},
+                tooltip: {
+                    backgroundColor: colors.cardBgColor, titleColor: colors.primaryTextColor,
+                    bodyColor: colors.primaryTextColor, borderColor: colors.borderColor, borderWidth: 1,
+                    padding: 8, cornerRadius: 0,
+                    titleFont: { weight: 'bold', size: 11, family: colors.fontFamily },
+                    bodyFont: { size: 10, family: colors.fontFamily },
+                }
+            },
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+                x: { ticks: { color: colors.primaryTextColor, font: {size: 10, family: colors.fontFamily}}, grid: { display: true, color: colors.borderColor, borderDash: [2,2] }},
+                y: { ticks: { color: colors.primaryTextColor, font: {size: 10, family: colors.fontFamily}}, grid: { display: true, color: colors.borderColor, borderDash: [2,2] }}
+            }
+        };
+    }
+
+    function createChartDatasetOptions(type, colors, ctx, label, data) {
+        const baseDataset = {
+            label, data, tension: 0, fill: false,
+            pointBorderColor: colors.cardBgColor, borderWidth: 1.5,
+            pointRadius: 2, pointHoverRadius: 4,
+        };
+
+        switch (type) {
+            case 'weeklyMax':
+                return { ...baseDataset, borderColor: colors.accentColorWarm, pointBackgroundColor: colors.accentColorWarm, pointHoverBorderColor: colors.accentColorWarm };
+            case 'weeklyMin':
+                return { ...baseDataset, borderColor: colors.accentColorCold, pointBackgroundColor: colors.accentColorCold, pointHoverBorderColor: colors.accentColorCold };
+            case 'hourlyTemp':
+                return { ...baseDataset, type: 'line', yAxisID: 'yTemp', borderColor: colors.accentColorWarm, pointBackgroundColor: colors.accentColorWarm, pointHoverBorderColor: colors.accentColorWarm };
+            case 'hourlyPrecip':
+                return {
+                    type: 'bar', label, data, yAxisID: 'yPrecip',
+                    backgroundColor: colors.accentColor,
+                    borderColor: colors.borderColor, borderWidth: 1,
+                    barPercentage: 0.6, categoryPercentage: 0.7
+                };
+            default: return baseDataset;
+        }
+    }
+
+    function renderSkeleton(show = true) {
+        DOM.loadingSkeleton.style.display = show ? 'block' : 'none';
+        DOM.appContainer.style.display = show ? 'none' : 'block';
+    }
+
+    function renderError(message, url = null) {
+        DOM.errorMessage.style.display = 'block';
+        let html = `<span></span>${message}`;
+        if (url) {
+            const displayUrl = url.length > 200 ? `${url.substring(0, 200)}...` : url;
+            html += `<br><a href="${url}" target="_blank" style="color: var(--accent-color-cold); word-break:break-all; font-size: 0.8em;">API: ${displayUrl}</a>`;
+        }
+        DOM.errorMessage.innerHTML = html;
+    }
+    function clearError() { DOM.errorMessage.style.display = 'none'; DOM.errorMessage.innerHTML = ''; }
+    
+    function renderCurrentWeather(current, hourly, timezone) {
+        if (!current) {
+            DOM.currentWeatherIcon.textContent = '❓'; DOM.currentTemp.innerHTML = 'N/A&deg;';
+            DOM.currentWeatherDesc.textContent = 'N/A'; DOM.currentApparentTemp.innerHTML = 'N/A&deg;';
+            DOM.currentHumidity.innerHTML = 'N/A%'; DOM.currentWindSpeed.innerHTML = 'N/A km/h';
+            DOM.currentWindDir.textContent = 'N/A'; DOM.currentPrecipitation.innerHTML = 'N/A mm';
+            DOM.currentTime.textContent = 'N/A';
+            return;
+        }
+
+        const weatherDetails = getWeatherDetails(current.weathercode, current.is_day === 1);
+        DOM.currentWeatherIcon.textContent = weatherDetails.icon;
+        if (weatherDetails.icon === '☀️') DOM.currentWeatherIcon.classList.add('sun');
+        else DOM.currentWeatherIcon.classList.remove('sun');
+        applySpecificIconAnimation(DOM.currentWeatherIcon, weatherDetails.icon);
+
+        DOM.currentTemp.innerHTML = `${Math.round(current.temperature)}&deg;C`;
+        DOM.currentWeatherDesc.textContent = weatherDetails.description;
+        DOM.currentWindSpeed.innerHTML = `${current.windspeed?.toFixed(1) ?? 'N/A'} km/h`;
+        DOM.currentWindDir.textContent = degreesToCardinal(current.winddirection);
+        DOM.currentTime.textContent = `${formatTime(current.time)} (${timezone || 'KST'})`;
+
+        if (hourly?.time?.length > 0) {
+            const now = new Date(current.time);
+            const closestTimeIndex = hourly.time.reduce((closestIdx, timeStr, currentIdx) => {
+                const diff = Math.abs(new Date(timeStr) - now);
+                const prevDiff = Math.abs(new Date(hourly.time[closestIdx]) - now);
+                return diff < prevDiff ? currentIdx : closestIdx;
+            }, 0);
+            DOM.currentApparentTemp.innerHTML = `${Math.round(hourly.apparent_temperature?.[closestTimeIndex] ?? 'N/A')}&deg;C`;
+            DOM.currentHumidity.innerHTML = `${hourly.relative_humidity_2m?.[closestTimeIndex] ?? 'N/A'}%`;
+            DOM.currentPrecipitation.innerHTML = `${hourly.precipitation?.[closestTimeIndex]?.toFixed(1) ?? '0'} mm`;
+        } else {
+            DOM.currentApparentTemp.innerHTML = 'N/A&deg;C'; DOM.currentHumidity.innerHTML = 'N/A%'; DOM.currentPrecipitation.innerHTML = '0 mm';
+        }
+    }
+
+    function renderWeeklyTempChart(dailyData) {
+        if (!dailyData?.time?.length) return;
+        const labels = dailyData.time.map(dateStr => {
+            const d = new Date(dateStr); return `${d.getMonth()+1}/${d.getDate()}`;
+        });
+        const chartColors = getChartColors();
+        const baseOptions = getBaseChartOptions();
+        const ctx = DOM.weeklyTempChartCanvas.getContext('2d');
+
+        if (_appState.weeklyTempChartInstance) _appState.weeklyTempChartInstance.destroy();
+        Chart.defaults.color = chartColors.primaryTextColor; Chart.defaults.borderColor = chartColors.borderColor;
+
+        _appState.weeklyTempChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [
+                    createChartDatasetOptions('weeklyMax', chartColors, ctx, '최고', dailyData.temperature_2m_max),
+                    createChartDatasetOptions('weeklyMin', chartColors, ctx, '최저', dailyData.temperature_2m_min)
+                ]
+            },
+            options: { ...baseOptions,
+                scales: {
+                    y: { ...baseOptions.scales.y, beginAtZero: false, ticks: { ...baseOptions.scales.y.ticks, callback: value => `${value}°` }},
+                    x: { ...baseOptions.scales.x, ticks: { ...baseOptions.scales.x.ticks, font: { size: 9 }}}
+                },
+                plugins: { ...baseOptions.plugins, tooltip: { ...baseOptions.plugins.tooltip, callbacks: { label: context => `${context.dataset.label}: ${context.parsed.y}°C`}}}
+            }
+        });
+    }
+
+    function createForecastCardHTML(dayData, index) {
+        const dateObj = new Date(`${dayData.time[index]}T00:00:00`);
+        const today = new Date(); today.setHours(0,0,0,0);
+        const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+
+        const dayNameOriginal = dateObj.toLocaleDateString('ko-KR', { weekday: 'long' });
+        let dayNameFormattedForCard = `(${dateObj.toLocaleDateString('ko-KR', { weekday: 'short' })})`;
+
+        if (dateObj.getTime() === today.getTime()) dayNameFormattedForCard = "(오늘)";
+        else if (dateObj.getTime() === tomorrow.getTime()) dayNameFormattedForCard = "(내일)";
+
+        const monthDay = dateObj.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
+        const weatherDetails = getWeatherDetails(dayData.weather_code[index], true);
+
+        const tempMin = Math.round(dayData.temperature_2m_min[index]);
+        const tempMax = Math.round(dayData.temperature_2m_max[index]);
+        const apparentMin = Math.round(dayData.apparent_temperature_min[index]);
+        const apparentMax = Math.round(dayData.apparent_temperature_max[index]);
+        const precipSum = dayData.precipitation_sum[index].toFixed(1);
+        const precipProbMax = dayData.precipitation_probability_max[index];
+        const windMax = dayData.wind_speed_10m_max[index].toFixed(1);
+        const windDir = degreesToCardinal(dayData.wind_direction_10m_dominant[index]);
+        const uvMax = dayData.uv_index_max[index].toFixed(1);
+        const sunriseTime = formatTime(dayData.sunrise[index]);
+        const sunsetTime = formatTime(dayData.sunset[index]);
+        const precipHours = dayData.precipitation_hours[index].toFixed(0);
+
+        let precipType = "";
+        if (dayData.rain_sum[index] > 0) precipType += "비 ";
+        if (dayData.showers_sum[index] > 0) precipType += "소나기 ";
+        if (dayData.snowfall_sum[index] > 0) precipType += "눈 ";
+        precipType = precipType.trim() || "없음";
+
+        const card = document.createElement('div');
+        card.className = 'weather-card';
+        card.dataset.dateStr = dayData.time[index];
+        card.dataset.dayName = dayNameOriginal; 
+        card.dataset.monthDay = monthDay;
+        
+        card.innerHTML = `
+            <div class="card-header">
+                <div class="date-wrapper">
+                    <span class="month-day">${monthDay}</span>
+                    <span class="day-name">${dayNameFormattedForCard}</span>
+                </div>
+            </div>
+            <div class="card-content-wrapper">
+                <div class="card-main-weather">
+                    <span class="icon">${weatherDetails.icon}</span>
+                    <div class="temps">
+                        <div class="temp-range">
+                            <span class="temp-min">${tempMin}&deg;</span> / <span class="temp-max">${tempMax}&deg;</span>
+                        </div>
+                        <div class="weather-description">${weatherDetails.description}</div>
+                    </div>
+                </div>
+                <div class="card-details-grid">
+                    <div class="detail-item feels-like"><span class="label">체감</span><span class="value">${apparentMin}&deg; / ${apparentMax}&deg;</span></div>
+                    <div class="detail-item precipitation"><span class="label">강수 (${precipType})</span><span class="value">${precipSum}<span class="unit">mm</span> (${precipProbMax}%)</span></div>
+                    <div class="detail-item wind"><span class="label">바람</span><span class="value">${windMax}<span class="unit">km/h</span> (${windDir})</span></div>
+                    <div class="detail-item uv-index"><span class="label">자외선</span><span class="value">${uvMax}</span></div>
+                    <div class="detail-item sunrise-sunset"><span class="label">일출/일몰</span><span class="value">${sunriseTime} / ${sunsetTime}</span></div>
+                    <div class="detail-item precipitation-hours"><span class="label">강수 시간</span><span class="value">${precipHours}<span class="unit">시간</span></span></div>
+                </div>
+            </div>`;
+        
+        const iconEl = card.querySelector('.card-main-weather .icon');
+        if (iconEl) applySpecificIconAnimation(iconEl, weatherDetails.icon);
+        return card;
+    }
+
+    function renderDailyForecasts(dailyData) {
+        DOM.forecastContainer.innerHTML = '';
+        if (!dailyData?.time?.length) { console.warn("Daily forecast data missing."); return; }
+        const fragment = document.createDocumentFragment();
+        dailyData.time.forEach((_, i) => {
+            try { fragment.appendChild(createForecastCardHTML(dailyData, i)); }
+            catch (error) { console.error("Error creating forecast card idx:", i, error); }
+        });
+        DOM.forecastContainer.appendChild(fragment);
+    }
+
+    function createHourlyForecastItemHTML(hourlyData, index) {
+        const weatherDetails = getWeatherDetails(hourlyData.weather_code[index], hourlyData.is_day[index] === 1);
+        const temp = Math.round(hourlyData.temperature_2m[index]);
+        const precipProb = hourlyData.precipitation_probability[index];
+        return `
+            <div class="hourly-item">
+                <span class="time">${formatTime(hourlyData.time[index])}</span>
+                <span class="icon">${weatherDetails.icon}</span>
+                <span class="temp">${temp}&deg;C</span>
+                <span class="precip">${precipProb}%</span>
+                <span class="desc">${weatherDetails.description}</span>
+            </div>`;
+    }
+    
+    function renderHourlyDataInModal(dateStr, dayName, monthDay) {
+        const hourlyFullData = _appState.hourlyFullData;
+        if (!hourlyFullData?.time) {
+            DOM.modalTitle.textContent = "오류";
+            DOM.hourlyForecastList.innerHTML = "<div class='hourly-item'>시간별 예보 데이터를 불러올 수 없습니다.</div>";
+            if (_appState.hourlyTempChartInstance) { _appState.hourlyTempChartInstance.destroy(); _appState.hourlyTempChartInstance = null; }
+            DOM.hourlyModal.classList.add(CONFIG.MODAL_ACTIVE_CLASS);
+            return;
+        }
+
+        DOM.modalTitle.textContent = `${monthDay} (${dayName}) 시간별 예보`;
+        
+        const selectedDate = dateStr.split('T')[0];
+        const chartLabels = []; const chartTemps = []; const chartPrecipProbs = [];
+        let hourlyItemsHTML = "";
+
+        hourlyFullData.time.forEach((time, index) => {
+            if (time.startsWith(selectedDate)) {
+                hourlyItemsHTML += createHourlyForecastItemHTML(hourlyFullData, index);
+                chartLabels.push(new Date(time));
+                chartTemps.push(hourlyFullData.temperature_2m[index]);
+                chartPrecipProbs.push(hourlyFullData.precipitation_probability[index]);
+            }
+        });
+        DOM.hourlyForecastList.innerHTML = hourlyItemsHTML;
+
+        const chartColors = getChartColors(); const baseOptions = getBaseChartOptions();
+        const ctx = DOM.hourlyTempChartCanvas.getContext('2d');
+        if (_appState.hourlyTempChartInstance) _appState.hourlyTempChartInstance.destroy();
+        Chart.defaults.color = chartColors.primaryTextColor; Chart.defaults.borderColor = chartColors.borderColor;
+
+        _appState.hourlyTempChartInstance = new Chart(ctx, {
+            data: {
+                labels: chartLabels,
+                datasets: [
+                    createChartDatasetOptions('hourlyPrecip', chartColors, ctx, '강수 확률 (%)', chartPrecipProbs),
+                    createChartDatasetOptions('hourlyTemp', chartColors, ctx, '온도 (°C)', chartTemps)
+                ]
+            },
+            options: { ...baseOptions,
+                scales: {
+                    x: { ...baseOptions.scales.x, type: 'time', time: { unit: 'hour', tooltipFormat: 'HH:mm', displayFormats: { hour: 'HH' }}},
+                    yTemp: { ...baseOptions.scales.y, type: 'linear', position: 'left', title: { display: true, text: '온도 (°C)', color: chartColors.primaryTextColor, font: {size: 10, family: chartColors.fontFamily}}, ticks: { ...baseOptions.scales.y.ticks, callback: value => `${value}°`}},
+                    yPrecip: { ...baseOptions.scales.y, type: 'linear', position: 'right', min: 0, max: 100, title: { display: true, text: '강수 확률 (%)', color: chartColors.primaryTextColor, font: {size: 10, family: chartColors.fontFamily}}, ticks: { ...baseOptions.scales.y.ticks, callback: value => `${value}%`}, grid: { ...baseOptions.scales.y.grid, drawOnChartArea: false }}
+                },
+                interaction: { mode: 'nearest', axis: 'x', intersect: false }
+            }
+        });
+        DOM.hourlyModal.classList.add(CONFIG.MODAL_ACTIVE_CLASS);
+    }
+
+    function setupWeatherEffectsCanvas() { DOM.weatherEffectsCanvas.width = window.innerWidth; DOM.weatherEffectsCanvas.height = window.innerHeight; }
+
+    function Particle(effectType) {
+        this.type = effectType; this.x = Math.random() * DOM.weatherEffectsCanvas.width;
+        if (effectType === 'snow') {
+            this.y = Math.random() * DOM.weatherEffectsCanvas.height; this.radius = Math.random() * 3 + 1;
+            this.speedY = Math.random() * 1 + 0.5; this.speedX = Math.random() * 1 - 0.5; this.opacity = Math.random() * 0.5 + 0.5;
+        } else if (effectType === 'rain') {
+            this.y = Math.random() * -DOM.weatherEffectsCanvas.height; this.length = Math.random() * 20 + 10;
+            this.speedY = Math.random() * 10 + 10; this.opacity = Math.random() * 0.3 + 0.2;
+        }
+        this.setColor();
+    }
+    Particle.prototype.setColor = function() {
+        const style = getComputedStyle(document.documentElement);
+        if (this.type === 'snow') this.color = style.getPropertyValue('--snow-color').trim();
+        else if (this.type === 'rain') this.color = style.getPropertyValue('--rain-color').trim();
+    };
+    Particle.prototype.draw = function() {
+        weatherEffectsCtx.beginPath(); weatherEffectsCtx.globalAlpha = this.opacity;
+        if (this.type === 'snow') {
+            weatherEffectsCtx.fillStyle = this.color; weatherEffectsCtx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); weatherEffectsCtx.fill();
+        } else if (this.type === 'rain') {
+            weatherEffectsCtx.strokeStyle = this.color; weatherEffectsCtx.lineWidth = 1.5;
+            weatherEffectsCtx.moveTo(this.x, this.y); weatherEffectsCtx.lineTo(this.x, this.y + this.length); weatherEffectsCtx.stroke();
+        }
+        weatherEffectsCtx.globalAlpha = 1;
+    };
+    Particle.prototype.update = function() {
+        this.y += this.speedY; const canvas = DOM.weatherEffectsCanvas;
+        if (this.type === 'snow') {
+            this.x += this.speedX;
+            if (this.y > canvas.height + this.radius) { this.y = -this.radius; this.x = Math.random() * canvas.width; }
+            if (this.x > canvas.width + this.radius || this.x < -this.radius) { this.x = Math.random() * canvas.width; this.y = -this.radius; }
+        } else if (this.type === 'rain') {
+            if (this.y > canvas.height) { this.y = Math.random() * -50; this.x = Math.random() * canvas.width; }
+        }
+    };
+    function updateAllParticleColors() { _appState.weatherEffect.particles.forEach(p => p.setColor()); }
+    function createParticles(effectType) {
+        const effect = _appState.weatherEffect; effect.particles = []; let numParticles;
+        const canvasArea = DOM.weatherEffectsCanvas.width * DOM.weatherEffectsCanvas.height;
+        if (effectType === 'snow') numParticles = Math.floor(canvasArea / CONFIG.PARTICLE_DENSITY_SNOW_DIVISOR);
+        else if (effectType === 'rain' || effectType === 'rain_snow') numParticles = Math.floor(canvasArea / CONFIG.PARTICLE_DENSITY_RAIN_DIVISOR);
+        else return;
+        numParticles = Math.min(numParticles, CONFIG.MAX_PARTICLES);
+        for (let i = 0; i < numParticles; i++) {
+            let particleType = (effectType === 'rain_snow') ? (Math.random() > 0.5 ? 'rain' : 'snow') : effectType;
+            effect.particles.push(new Particle(particleType));
+        }
+    }
+    function animateParticles() {
+        const effect = _appState.weatherEffect;
+        weatherEffectsCtx.clearRect(0, 0, DOM.weatherEffectsCanvas.width, DOM.weatherEffectsCanvas.height);
+        effect.particles.forEach(p => { p.update(); p.draw(); });
+        effect.animationFrameId = requestAnimationFrame(animateParticles);
+    }
+    function startWeatherEffect(effectType) {
+        const effect = _appState.weatherEffect; if (effect.animationFrameId) cancelAnimationFrame(effect.animationFrameId);
+        effect.currentEffectType = effectType; effect.particles = [];
+        weatherEffectsCtx.clearRect(0, 0, DOM.weatherEffectsCanvas.width, DOM.weatherEffectsCanvas.height);
+        if (effectType) { createParticles(effectType); if (effect.particles.length > 0) animateParticles(); }
+    }
+    
+    async function fetchWeatherData() {
+        const dailyP = "weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,sunrise,sunset,precipitation_sum,rain_sum,showers_sum,snowfall_sum,precipitation_hours,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant,uv_index_max";
+        const hourlyP = "temperature_2m,apparent_temperature,relative_humidity_2m,precipitation_probability,precipitation,weather_code,is_day";
+        const url = `${CONFIG.API_BASE_URL}?latitude=${CONFIG.SEOUL_LAT}&longitude=${CONFIG.SEOUL_LON}&current_weather=true&daily=${dailyP}&hourly=${hourlyP}&timezone=Asia/Seoul&forecast_days=7`;
+        try {
+            const response = await fetch(url);
+            if (!response.ok) { let errorData = { message: response.statusText, reason: "Unknown" }; try { errorData = await response.json(); } catch (e) {} throw new Error(`HTTP ${response.status}: ${errorData.reason || errorData.message}`); }
+            const data = await response.json();
+            if (!data?.current_weather || !data?.daily || !data?.hourly) throw new Error("API data format incorrect.");
+            return {data, url};
+        } catch (error) { console.error('Fetch error:', error); throw { originalError: error, failedUrl: url }; }
+    }
+
+    function processAndDisplayWeatherData(weatherData) {
+        _appState.hourlyFullData = weatherData.hourly;
+        DOM.mainTitle.textContent = `날씨 - 서울`; DOM.subTitle.textContent = `서울 상세 날씨 정보`;
+        renderCurrentWeather(weatherData.current_weather, weatherData.hourly, weatherData.timezone_abbreviation);
+        renderWeeklyTempChart(weatherData.daily);
+        renderDailyForecasts(weatherData.daily);
+        const currentWeatherDetails = getWeatherDetails(weatherData.current_weather.weathercode, weatherData.current_weather.is_day === 1);
+        startWeatherEffect(currentWeatherDetails.effect);
+        const now = new Date();
+        DOM.lastUpdated.textContent = `업데이트: ${now.toLocaleDateString('ko-KR')} ${now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit'})}`;
+    }
+
+    async function loadWeatherData(showSkeletonUI = true) {
+        if (showSkeletonUI) renderSkeleton(true); clearError();
+        if (DOM.aqiSection) DOM.aqiSection.style.display = 'none';
+        try {
+            const {data, url} = await fetchWeatherData();
+            processAndDisplayWeatherData(data);
+            if (showSkeletonUI) renderSkeleton(false);
+        } catch (errorInfo) {
+            if (showSkeletonUI) renderSkeleton(false);
+            renderError(`정보 로드 실패: ${errorInfo.originalError.message}`, errorInfo.failedUrl);
+        }
+    }
+    
+    function setupEventListeners() {
+        DOM.closeModalButton.onclick = () => DOM.hourlyModal.classList.remove(CONFIG.MODAL_ACTIVE_CLASS);
+        window.onclick = event => { if (event.target === DOM.hourlyModal) DOM.hourlyModal.classList.remove(CONFIG.MODAL_ACTIVE_CLASS); };
+        window.addEventListener('resize', () => {
+            setupWeatherEffectsCanvas();
+            if (_appState.weatherEffect.currentEffectType) startWeatherEffect(_appState.weatherEffect.currentEffectType);
+        });
+        DOM.themeToggleButton.addEventListener('click', toggleTheme);
+        DOM.forecastContainer.addEventListener('click', event => {
+            const card = event.target.closest('.weather-card');
+            if (card?.dataset.dateStr && card.dataset.dayName && card.dataset.monthDay) {
+                renderHourlyDataInModal(card.dataset.dateStr, card.dataset.dayName, card.dataset.monthDay);
+            }
+        });
+    }
+
+    function initialize() { loadInitialTheme(); setupWeatherEffectsCanvas(); setupEventListeners(); loadWeatherData(); }
+    initialize();
+})();
+</script>
+</body>
+</html>

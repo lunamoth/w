@@ -436,7 +436,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2 id="modalTitle">시간별 예보</h2>
-                <span class="close-button" id="closeModalButton">×</span>
+                <span class="close-button" id="closeModalButton">&times;</span>
             </div>
             <div class="hourly-forecast-list" id="hourlyForecastList">
                 <!-- 시간별 예보 아이템이 여기에 동적으로 추가됩니다. -->
@@ -552,7 +552,7 @@
 
         const dailyParams = [ "weather_code", "temperature_2m_max", "temperature_2m_min", "apparent_temperature_max", "apparent_temperature_min", "sunrise", "sunset", "precipitation_sum", "rain_sum", "showers_sum", "snowfall_sum", "precipitation_hours", "precipitation_probability_max", "wind_speed_10m_max", "wind_gusts_10m_max", "wind_direction_10m_dominant", "uv_index_max" ].join(',');
         const hourlyParams = [ "temperature_2m", "apparent_temperature", "relative_humidity_2m", "precipitation_probability", "precipitation", "weather_code", "is_day" ].join(',');
-        const forecastUrl = `${CONFIG.API_BASE_URL}?latitude=${CONFIG.SEOUL_LAT}&longitude=${CONFIG.SEOUL_LON}¤t_weather=true&daily=${dailyParams}&hourly=${hourlyParams}&timezone=Asia/Seoul&forecast_days=7`;
+        const forecastUrl = `${CONFIG.API_BASE_URL}?latitude=${CONFIG.SEOUL_LAT}&longitude=${CONFIG.SEOUL_LON}&current_weather=true&daily=${dailyParams}&hourly=${hourlyParams}&timezone=Asia/Seoul&forecast_days=7`;
         
         try {
             const response = await fetch(forecastUrl);
@@ -593,7 +593,7 @@
         if (!current) { console.warn("Current weather data is missing."); return; }
         const weatherDetails = getWeatherDetails(current.weathercode, current.is_day === 1);
         currentWeatherIconEl.textContent = weatherDetails.icon;
-        currentTempEl.innerHTML = `${Math.round(current.temperature)}°C`;
+        currentTempEl.innerHTML = `${Math.round(current.temperature)}&deg;C`;
         currentWeatherDescEl.textContent = weatherDetails.description;
         currentWindSpeedEl.innerHTML = `${current.windspeed !== undefined && current.windspeed !== null ? current.windspeed.toFixed(1) : 'N/A'} km/h`;
         currentWindDirEl.textContent = degreesToCardinal(current.winddirection);
@@ -609,7 +609,7 @@
                 if (diff < minDiff) { minDiff = diff; closestTimeIndex = index; }
             });
             if (closestTimeIndex !== -1) {
-                currentApparentTempEl.innerHTML = (hourly.apparent_temperature && hourly.apparent_temperature[closestTimeIndex] !== null) ? `${Math.round(hourly.apparent_temperature[closestTimeIndex])}°C` : 'N/A';
+                currentApparentTempEl.innerHTML = (hourly.apparent_temperature && hourly.apparent_temperature[closestTimeIndex] !== null) ? `${Math.round(hourly.apparent_temperature[closestTimeIndex])}&deg;C` : 'N/A';
                 currentHumidityEl.innerHTML = (hourly.relative_humidity_2m && hourly.relative_humidity_2m[closestTimeIndex] !== null) ? `${hourly.relative_humidity_2m[closestTimeIndex]}%` : 'N/A';
                 currentPrecipitationEl.innerHTML = (hourly.precipitation && hourly.precipitation[closestTimeIndex] !== null) ? `${hourly.precipitation[closestTimeIndex].toFixed(1)} mm` : '0 mm';
             } else {
@@ -702,8 +702,8 @@
                         <span class="icon">${weatherDetails.icon}</span>
                         <div class="temps">
                             <div class="temp-range">
-                                <span class="temp-min">${tempMin}°</span> / 
-                                <span class="temp-max">${tempMax}°</span>
+                                <span class="temp-min">${tempMin}&deg;</span> / 
+                                <span class="temp-max">${tempMax}&deg;</span>
                             </div>
                             <div class="weather-description">${weatherDetails.description}</div>
                         </div>
@@ -711,7 +711,7 @@
                     <div class="card-details-grid">
                         <div class="detail-item feels-like">
                             <span class="label">체감</span>
-                            <span class="value">${apparentMin}° / ${apparentMax}°</span>
+                            <span class="value">${apparentMin}&deg; / ${apparentMax}&deg;</span>
                         </div>
                         <div class="detail-item precipitation">
                             <span class="label">강수 (${precipitationTypeText.trim()})</span>
@@ -764,7 +764,7 @@
                     
                     const item = document.createElement('div'); 
                     item.classList.add('hourly-item'); 
-                    item.innerHTML = ` <span class="time">${formatTime(time)}</span> <span class="icon">${weatherDetails.icon}</span> <span class="temp">${temp}°C</span> <span class="precip">${precipProb}%</span> <span class="desc">${weatherDetails.description}</span> `; 
+                    item.innerHTML = ` <span class="time">${formatTime(time)}</span> <span class="icon">${weatherDetails.icon}</span> <span class="temp">${temp}&deg;C</span> <span class="precip">${precipProb}%</span> <span class="desc">${weatherDetails.description}</span> `; 
                     fragment.appendChild(item);
                     
                     hourlyLabels.push(new Date(time)); 

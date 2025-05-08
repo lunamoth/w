@@ -552,12 +552,11 @@
         '🌤️': 'anim-cloud-drift',
         '🌧️': 'anim-rain-drop',
         '💧': 'anim-rain-drop',
-        '🌦️': 'anim-rain-drop', // Will be overridden by specific anim if ⛈️ is present
-        '⛈️': 'anim-rain-drop', // Explicitly for thunderstorm to also have rain drop
+        '🌦️': 'anim-rain-drop',
+        '⛈️': 'anim-rain-drop',
         '❄️': 'anim-snow-flake',
         '🌨️': 'anim-snow-flake',
     };
-
 
     // --- DOM ELEMENT CACHING ---
     const DOM = {
@@ -643,20 +642,11 @@
                 element.classList.remove(cls);
             }
         }
-        // Apply specific animations based on map
-        // Iterate ICON_ANIMATION_MAP to apply if iconChar contains key
         for (const key in ICON_ANIMATION_MAP) {
             if (iconChar.includes(key)) {
-                 // Special handling for 🌦️: if it's actually ⛈️, ⛈️ animation (if any) should take precedence or be combined.
-                if (key === '🌦️' && iconChar.includes('⛈️')) {
-                    continue; // Skip generic 🌦️ if it's part of ⛈️
-                }
+                if (key === '🌦️' && iconChar.includes('⛈️')) continue;
                 element.classList.add(ICON_ANIMATION_MAP[key]);
-                // If we only want one animation, break here.
-                // For sun + cloud drift, we might not want to break.
-                // For now, let's assume one primary animation type.
-                // 'sun' is a special case for rotation, others are for subtle movements.
-                if (ICON_ANIMATION_MAP[key] !== 'sun') break;
+                if (ICON_ANIMATION_MAP[key] !== 'sun') break; 
             }
         }
     }
@@ -686,9 +676,7 @@
             } else if (chartType === 'hourly') {
                 newOpts = createChartDatasetOptions(index === 0 ? 'hourlyTemp' : 'hourlyPrecip', newColors, ctx, dataset.label, dataset.data);
             }
-            if (newOpts) {
-                Object.assign(dataset, newOpts); // Update existing dataset object
-            }
+            if (newOpts) Object.assign(dataset, newOpts);
         });
         chartInstance.update();
     }
@@ -845,14 +833,10 @@
     function renderCurrentWeather(current, hourly, timezone) {
         if (!current) {
             console.warn("Current weather data is missing.");
-            DOM.currentWeatherIcon.textContent = 'N/A';
-            DOM.currentTemp.innerHTML = 'N/A&deg;C';
-            DOM.currentWeatherDesc.textContent = 'N/A';
-            DOM.currentApparentTemp.innerHTML = 'N/A&deg;C';
-            DOM.currentHumidity.innerHTML = 'N/A%';
-            DOM.currentWindSpeed.innerHTML = 'N/A km/h';
-            DOM.currentWindDir.textContent = 'N/A';
-            DOM.currentPrecipitation.innerHTML = 'N/A mm';
+            DOM.currentWeatherIcon.textContent = 'N/A'; DOM.currentTemp.innerHTML = 'N/A&deg;C';
+            DOM.currentWeatherDesc.textContent = 'N/A'; DOM.currentApparentTemp.innerHTML = 'N/A&deg;C';
+            DOM.currentHumidity.innerHTML = 'N/A%'; DOM.currentWindSpeed.innerHTML = 'N/A km/h';
+            DOM.currentWindDir.textContent = 'N/A'; DOM.currentPrecipitation.innerHTML = 'N/A mm';
             DOM.currentTime.textContent = 'N/A';
             return;
         }
@@ -923,12 +907,11 @@
         const today = new Date(); today.setHours(0,0,0,0);
         const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
 
-        let dayNameOriginal = dateObj.toLocaleDateString('ko-KR', { weekday: 'long' });
-        let displayDayText = dayNameOriginal;
-        let dayNameFormatted = `(${dayNameOriginal})`;
+        const dayNameOriginal = dateObj.toLocaleDateString('ko-KR', { weekday: 'long' });
+        let dayNameFormattedForCard = `(${dayNameOriginal})`; // For card display
 
-        if (dateObj.getTime() === today.getTime()) { displayDayText = "오늘"; dayNameFormatted = "(오늘)"; }
-        else if (dateObj.getTime() === tomorrow.getTime()) { displayDayText = "내일"; dayNameFormatted = "(내일)";}
+        if (dateObj.getTime() === today.getTime()) dayNameFormattedForCard = "(오늘)";
+        else if (dateObj.getTime() === tomorrow.getTime()) dayNameFormattedForCard = "(내일)";
 
         const monthDay = dateObj.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
         const weatherDetails = getWeatherDetails(dayData.weather_code[index], true);
@@ -955,14 +938,14 @@
         const card = document.createElement('div');
         card.className = 'weather-card';
         card.dataset.dateStr = dayData.time[index];
-        card.dataset.dayName = displayDayText;
+        card.dataset.dayName = dayNameOriginal; // Store full day name for modal
         card.dataset.monthDay = monthDay;
         
         card.innerHTML = `
             <div class="card-header">
                 <div class="date-wrapper">
                     <span class="month-day">${monthDay}</span>
-                    <span class="day-name">${dayNameFormatted}</span>
+                    <span class="day-name">${dayNameFormattedForCard}</span>
                 </div>
             </div>
             <div class="card-main-weather">
@@ -1019,7 +1002,7 @@
             </div>`;
     }
     
-    function renderHourlyDataInModal(dateStr, dayName, monthDay) {
+    function renderHourlyDataInModal(dateStr, dayName, monthDay) { // dayName is now always full day name like "일요일"
         const hourlyFullData = _appState.hourlyFullData;
         if (!hourlyFullData?.time) {
             console.error("Hourly data for modal is not available in app state.");
@@ -1031,7 +1014,7 @@
             return;
         }
 
-        DOM.modalTitle.textContent = `${dayName} (${monthDay}) 시간별 예보`;
+        DOM.modalTitle.textContent = `${monthDay} (${dayName}) 시간별 예보`; // Changed order
         
         const selectedDate = dateStr.split('T')[0];
         const chartLabels = [];
@@ -1101,27 +1084,24 @@
             this.speedY = Math.random() * 10 + 10;
             this.opacity = Math.random() * 0.3 + 0.2;
         }
-        this.setColor(); // Set initial color
+        this.setColor();
     }
 
     Particle.prototype.setColor = function() {
         const style = getComputedStyle(document.documentElement);
-        if (this.type === 'snow') {
-            this.color = style.getPropertyValue('--snow-color').trim();
-        } else if (this.type === 'rain') {
-            this.color = style.getPropertyValue('--rain-color').trim();
-        }
+        if (this.type === 'snow') this.color = style.getPropertyValue('--snow-color').trim();
+        else if (this.type === 'rain') this.color = style.getPropertyValue('--rain-color').trim();
     };
 
     Particle.prototype.draw = function() {
         weatherEffectsCtx.beginPath();
         weatherEffectsCtx.globalAlpha = this.opacity;
         if (this.type === 'snow') {
-            weatherEffectsCtx.fillStyle = this.color; // Use stored color
+            weatherEffectsCtx.fillStyle = this.color;
             weatherEffectsCtx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
             weatherEffectsCtx.fill();
         } else if (this.type === 'rain') {
-            weatherEffectsCtx.strokeStyle = this.color; // Use stored color
+            weatherEffectsCtx.strokeStyle = this.color;
             weatherEffectsCtx.lineWidth = 1.5;
             weatherEffectsCtx.moveTo(this.x, this.y);
             weatherEffectsCtx.lineTo(this.x, this.y + this.length);
@@ -1193,7 +1173,7 @@
             const response = await fetch(url);
             if (!response.ok) {
                 let errorData = { message: response.statusText, reason: "Unknown error" };
-                try { errorData = await response.json(); } catch (e) { /* ignore parsing error */ }
+                try { errorData = await response.json(); } catch (e) { /* ignore */ }
                 throw new Error(`HTTP ${response.status}: ${errorData.reason || errorData.message}`);
             }
             const data = await response.json();
